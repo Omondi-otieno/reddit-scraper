@@ -1,0 +1,6 @@
+# Ignore the .env file to keep credentials private
+.env
+
+# Ignore Python cache files
+__pycache__/
+*.pyc

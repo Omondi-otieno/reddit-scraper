@@ -1,13 +1,13 @@
 import praw
 import os
+import sys
 from dotenv import load_dotenv
+import datetime as dt
 
 # --- Load Environment Variables ---
-# This will load the variables from the .env file in the same directory.
 load_dotenv()
 
 # --- Get Credentials from Environment ---
-# Replace these with the actual variable names from your .env file if you changed them.
 client_id = os.getenv("REDDIT_CLIENT_ID")
 client_secret = os.getenv("REDDIT_CLIENT_SECRET")
 user_agent = os.getenv("REDDIT_USER_AGENT")
@@ -16,8 +16,12 @@ user_agent = os.getenv("REDDIT_USER_AGENT")
 
 def main():
     """
-    Main function to connect to Reddit, fetch posts, and print them.
+    Main function to connect to Reddit, search for posts based on user keywords,
+    filter them by age (last 3 months), and save the results to a text file.
     """
+    # Set stdout encoding to UTF-8 to handle special characters
+    sys.stdout.reconfigure(encoding='utf-8')
+
     # Check if all credentials are loaded
     if not all([client_id, client_secret, user_agent]):
         print("Error: Missing Reddit API credentials in the .env file.")
@@ -25,25 +29,65 @@ def main():
         return
 
     try:
-        # Initialize the Reddit instance with your credentials
+        # Initialize the Reddit instance
         reddit = praw.Reddit(
             client_id=client_id,
             client_secret=client_secret,
             user_agent=user_agent,
         )
 
-        # Specify the subreddit you want to scrape
-        subreddit_name = "learnpython"
+        # Search across all of Reddit
+        subreddit_name = "all"
         subreddit = reddit.subreddit(subreddit_name)
 
-        print(f"--- Top 10 Hot Posts from r/{subreddit_name} ---")
+        # --- Define Keywords Here ---
+        # You can add multiple keywords to this list.
+        # The script will search for posts containing ANY of these keywords.
+        keywords_list = ["python", "web scraping"]
+        keywords = " ".join(keywords_list) # Join keywords for the search query
 
-        # Fetch the top 10 "hot" posts from the subreddit
-        for post in subreddit.hot(limit=10):
-            print(f"Title: {post.title}")
-            print(f"Score: {post.score}")
-            print(f"URL: {post.url}")
-            print("-" * 20)
+        if not keywords_list:
+            print("No keywords defined in the script. Exiting.")
+            return
+
+        print(f"Searching for posts across all of Reddit with keywords: '{keywords}'")
+
+        # --- Time Filtering Setup ---
+        # Calculate the timestamp for 3 months ago (approx 90 days)
+        three_months_ago = dt.datetime.now() - dt.timedelta(days=90)
+        three_months_ago_timestamp = three_months_ago.timestamp()
+
+        # --- Prepare Output File ---
+        # Create a safe filename from the keywords
+        safe_keywords = "_".join(c for c in keywords_list if c.isalnum() or c in (' ', '_')).rstrip()
+        output_filename = f"reddit_posts_{safe_keywords.replace(' ', '_')}.txt"
+        
+        found_posts = False
+        with open(output_filename, 'w', encoding='utf-8') as f:
+            f.write(f"--- Search Results from all of Reddit for '{keywords}' (last 3 months) ---\n\n")
+            
+            # --- Search and Filter Posts ---
+            # PRAW's search time_filter doesn't support custom ranges, so we search and then filter manually.
+            # We sort by 'new' to get the most recent posts first.
+            for post in subreddit.search(keywords, sort='new', limit=100): # Increased limit to find more recent posts
+                if post.created_utc > three_months_ago_timestamp:
+                    found_posts = True
+                    f.write(f"Title: {post.title}\n")
+                    f.write(f"Score: {post.score}\n")
+                    f.write(f"URL: {post.url}\n")
+                    f.write(f"Date: {dt.datetime.fromtimestamp(post.created_utc)}\n")
+                    f.write("-" * 20 + "\n")
+                    
+                    # Also print to console to show progress
+                    print(f"Found post: {post.title}")
+
+        if found_posts:
+            print(f"\nSuccess! The results have been saved to '{output_filename}'")
+        else:
+            print(f"\nNo posts found matching your criteria in the last 3 months.")
+            # Clean up the empty file if no posts were found
+            os.remove(output_filename)
+
 
     except Exception as e:
         print(f"An error occurred: {e}")

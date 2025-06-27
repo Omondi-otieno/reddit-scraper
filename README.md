@@ -11,7 +11,7 @@ This is a Python web scraper that uses the PRAW (Python Reddit API Wrapper) libr
 
 ## Setup:
 
-1.  **Clone this repository** (after it's pushed to GitHub).
+1.  **Clone this repository**
 2.  **Install dependencies:** `pip install praw python-dotenv`
 3.  **Get Reddit API Credentials:** Follow the instructions [here](https://www.reddit.com/prefs/apps) to create a "script" application and obtain your `client_id` and `client_secret`. Set the `redirect uri` to `http://localhost:8080`.
 4.  **Create a `.env` file** in the project root with your credentials:
